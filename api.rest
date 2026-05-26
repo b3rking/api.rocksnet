@@ -1,0 +1,313 @@
+# create new user
+# POST http://localhost:8000/api/register
+# Accept: application/json
+# Content-Type: application/json
+
+# {
+#     "name": "aaaca",
+#     "email": "aca@gmail.com",
+#     "password": "password",
+#     "password_confirmation": "password"
+# }
+
+
+# login request
+# POST http://localhost:8000/api/login
+# Accept: application/json
+# Content-Type: application/json
+
+# {
+#     "email": "quan@gmail.com",
+#     "password": "password"
+# }
+
+# aca@gmail.com token ==== 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c, 1|Dzi9XcAU9OMc5j9VLGuG4bDXXJqGRPiFBPiNT5Q4bde08e45
+
+# fetch the auth user
+
+# GET http://localhost:8000/api/user
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+
+# fetch profil
+
+# GET http://localhost:8000/api/profils
+# Content-Type: application/json
+# Accept: application/json
+
+# fetch currencies
+
+# GET http://localhost:8000/api/currencies
+
+# create profil
+
+# POST http://localhost:8000/api/profils
+# Content-Type: application/json
+# Accept: application/json
+
+# {
+#     "name": "basic",
+#     "duration": "1 heure",
+#     "price": "100",
+#     "currency_id": 1
+# }
+
+# fetch one profil
+
+# GET http://localhost:8000/api/profils/019df3cb-8204-71d4-bb86-5f7ee761db58
+# Content-Type: application/json
+# Accept: application/json
+
+
+# update profil
+
+# PATCH http://localhost:8000/api/profils/019df3cb-8204-71d4-bb86-5f7ee761db58
+# Content-Type: application/json
+# Accept: application/json
+
+# {
+#     "name": "basicaa",
+#     "duration": "3 heure",
+#     "price": "100",
+#     "currency_id": 1
+# }
+
+
+
+# delete one profil
+
+# DELETE http://localhost:8000/api/profils/019df3cc-9f5d-71d2-8a91-7decd145e16f
+# Content-Type: application/json
+# Accept: application/json
+
+
+# fetch roles
+
+# GET http://localhost:8000/api/roles
+
+
+# fetch the stock
+
+# GET http://localhost:8000/api/stock
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# attribute ticket
+
+# POST http://localhost:8000/api/stock/attribute
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 5|81qTyztR9LbQhTTtiQWbGbUOP3yGdMJ40khKmLoo5bae956b
+
+# {
+#     "user_id": 1,
+#     "profil_id": "019df3cc-629e-7303-a014-fc5f86edae67",
+#     "quantity": 3
+# }
+
+# register sales
+
+# POST http://localhost:8000/api/stock/sale
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# {
+#     "user_id": 1,
+#     "profil_id": "019df3cc-629e-7303-a014-fc5f86edae67",
+#     "tickets_sold": 44
+# }
+
+
+# fetch history
+# GET http://localhost:8000/api/stock/history
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+
+# fetch users by roles
+
+# GET http://localhost:8000/api/list/agents
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# GET http://localhost:8000/api/list/super-agents
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# GET http://localhost:8000/api/list/admins
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+
+
+# subscriptions
+
+# GET http://localhost:8000/api/subscriptions
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+
+# POST http://localhost:8000/api/subscriptions
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# {
+#     "bandwidth": "50 Mbps",
+#     "price": "280.00",
+#     "currency_id": 1
+# }
+
+
+# PUT http://localhost:8000/api/subscriptions/2
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# {
+#     "bandwidth": "22 Mbps",
+#     "price": "200.00",
+#     "currency_id": 1
+# }
+
+
+
+# DELETE http://localhost:8000/api/subscriptions/3
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+
+# ========================================
+# PAYMENTS - ROLE-BASED ACCESS CONTROL
+# ========================================
+# Roles:
+#   - admin: full access (create, read, update, delete)
+#   - super agent: create, read, update
+#   - agent: read own payments only
+# ========================================
+
+
+# ======================================
+# 1. GET ALL PAYMENTS
+# ======================================
+# admin/super agent: see all payments
+# agent: see only their own payments
+# ======================================
+
+# GET http://localhost:8000/api/payments HTTP/1.1
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+
+# ======================================
+# 2. CREATE PAYMENT (STORE)
+# ======================================
+# Authorization: admin, super agent only
+#
+# Required fields:
+#   - amount: decimal:2 (e.g., 150.50)
+#   - currency_id: exists in currencies table
+#   - saved_by: user ID who created payment
+#   - payment_type: "Subscription" or "Ticket"
+#   - payment_method: "Cash", "Cheque", or "Transfert"
+#
+# Optional fields:
+#   - agent_id: user ID of agent
+#   - description: string, min 10 chars
+#   - stock_history_id: ID from stock_histories
+#   - invoice_id: ID from invoices
+# ======================================
+
+# POST http://localhost:8000/api/payments
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# {
+#     "amount": "150.50",
+#     "currency_id": 1,
+#     "saved_by": 1,
+#     "agent_id": 2,
+#     "description": "Payment for ticket purchase",
+#     "payment_type": "Ticket",
+#     "payment_method": "Cash"
+# }
+
+
+# ======================================
+# 3. CREATE PAYMENT - WITH SUBSCRIPTION
+# ======================================
+
+POST http://localhost:8000/api/payments HTTP/1.1
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+{
+    "amount": "280.00",
+    "currency_id": 1,
+    "saved_by": 1,
+    "description": "Monthly subscription payment",
+    "payment_type": "Subscription",
+    "payment_method": "Transfert"
+}
+
+
+# ======================================
+# 4. GET SINGLE PAYMENT
+# ======================================
+# Authorization: all roles (with restrictions)
+# admin/super agent: can see any payment
+# agent: can only see their own payments
+# ======================================
+
+# GET http://localhost:8000/api/payments/019df3cc-629e-7303-a014-fc5f86edae67
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+
+# ======================================
+# 5. UPDATE PAYMENT
+# ======================================
+# Authorization: admin, super agent only
+# Can update: amount, payment_method, description, etc.
+# ======================================
+
+# PATCH http://localhost:8000/api/payments/019df3cc-629e-7303-a014-fc5f86edae67
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# {
+#     "amount": "200.00",
+#     "payment_method": "Cheque",
+#     "description": "Updated payment description"
+# }
+
+
+# ======================================
+# 6. UPDATE PAYMENT - CHANGE STATUS
+# ======================================
+
+# PATCH http://localhost:8000/api/payments/019df3cc-629e-7303-a014-fc5f86edae67
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
+# {
+#     "payment_method": "Transfert"
+# }
+
+
+# ======================================
+# 7. DELETE PAYMENT
+# ======================================
+# Authorization: admin only
+# ======================================
+
+# DELETE http://localhost:8000/api/payments/019df3cc-629e-7303-a014-fc5f86edae67
+# Accept: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
