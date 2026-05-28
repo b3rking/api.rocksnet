@@ -23,10 +23,13 @@ Route::post('/login', [AuthController::class, 'login']);
 // Protected routes (Requires a valid token)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::put('/users/{user}', [AuthController::class, 'update']);
+    Route::delete('/users/{user}', [AuthController::class, 'delete']);
     Route::get('currencies', [AppController::class, 'currencies']);
     Route::get('roles', [AppController::class, 'roles']);
     Route::apiResource('profils', ProfilController::class);
     Route::get('list/agents', [AppController::class, 'listAgent']);
+    Route::get('list/users', [AppController::class, 'users']);
     Route::get('list/super-agents', [AppController::class, 'listSuperAgent']);
     Route::get('list/admins', [AppController::class, 'listAdmin']);
     Route::get('stock', [AgentStockController::class, 'index']);

@@ -1,7 +1,9 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -61,5 +63,30 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out successfully']);
+    }
+
+    public function update(Request $request, User $user): JsonResponse
+    {
+        $fields = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'role_id' => ['sometimes', 'exists:roles,id'],
+        ]);
+
+        $user->update($fields);
+
+        return response()->json([
+            'user' => $user->load('role'),
+            'message' => 'User updated successfully',
+        ]);
+    }
+
+    public function delete(User $user): JsonResponse
+    {
+        $user->delete();
+
+        return response()->json([
+            'message' => 'User deleted successfully',
+        ]);
     }
 }

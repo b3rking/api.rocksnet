@@ -26,6 +26,11 @@ class AppController extends Controller
         return response()->json(User::where('role_id', 1)->get());
     }
 
+    public function users(): JsonResponse
+    {
+        return response()->json(User::latest()->with('role')->paginate(10));
+    }
+
     public function currencies(): JsonResponse
     {
         return response()->json([
