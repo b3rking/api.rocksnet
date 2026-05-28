@@ -13,7 +13,7 @@ class ProfilController extends Controller
     public function index()
     {
         return response()->json([
-            'profils' => Profil::all(),
+            'profils' => Profil::all()->load('currency'),
             'count' => Profil::count()
         ]);
     }
