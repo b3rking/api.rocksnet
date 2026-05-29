@@ -16,11 +16,11 @@ class StockHistory extends Model
 
     public function agent(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'agent_id');
     }
 
     public function profil(): BelongsTo
     {
-        return $this->belongsTo(Profil::class);
+        return $this->belongsTo(Profil::class, 'profil_id');
     }
 }

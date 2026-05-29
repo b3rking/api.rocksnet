@@ -51,7 +51,7 @@ class AgentStockController extends Controller
                 'agent_id' => $request->user_id,
                 'profil_id' => $request->profil_id,
                 'quantity' => $request->quantity,
-                'action' => ActionEnum::REDUCTION
+                'action' => ActionEnum::ATTRIBUTION
             ]);
 
             return response()->json([
@@ -119,16 +119,20 @@ class AgentStockController extends Controller
     public function saleHistory(Request $request): JsonResponse
     {
         $user = $request->user();
+
         if ($user->isAdmin()) {
-            $history = StockHistory::latest()->paginate(10);
+            $history = StockHistory::with(['agent', 'profil'])->latest()->get();
         } else {
-            $history = $user->history;
+            $history = StockHistory::with(['agent', 'profil'])
+                ->where('agent_id', $user->id)
+                ->latest()
+                ->get();
         }
 
         return response()->json([
-            'message' => 'history fetched successfully',
+            'message' => 'History fetched successfully',
             'history' => $history,
-            'count' => $history->count()
+            'count'   => $history->count()
         ], 200);
     }
 }
