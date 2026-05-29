@@ -62,7 +62,7 @@ class User extends Authenticatable
     }
 
     public function isAdmin(): bool {
-        return $this->role->id == 3;
+        return $this->role->id == 1;
     }
 
     public function isSuperAgent() {
@@ -70,7 +70,7 @@ class User extends Authenticatable
     }
 
     public function isAgent() {
-        return $this->role->id == 1;
+        return $this->role->id == 3;
     }
 
     public function history(): HasMany

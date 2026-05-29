@@ -17,13 +17,16 @@ class AgentStockController extends Controller
     {
         if (!$request->user()->isAdmin()) {
             return response()->json([
-                'stock' => AgentStock::all(),
+                'stock' => AgentStock::where('user_id', $request->user()->id)
+                    ->get()
+                    ->load('user', 'profil'),
                 'count' => AgentStock::count()
             ]);
         } else {
             return response()->json([
-                'message' => 'admin cannot have a stock'
-            ], 400);
+                'stock' => AgentStock::all()->load('user', 'profil'),
+                'count' => AgentStock::count()
+            ]);
         }
     }
 
@@ -101,7 +104,7 @@ class AgentStockController extends Controller
                     ], 201);
                 } else {
                     return response()->json([
-                        'message' => 'you cannot sale more than what you have'
+                        'message' => 'La quantite saisie n\'est pas disponible dans votre stock'
                     ], 422);
                 }
             } else {
