@@ -58,6 +58,46 @@ class PaymentController extends Controller
      * Store a newly created resource in storage.
      * Only admin and super agent can create payments
      */
+    // public function store(Request $request)
+    // {
+    //     try {
+    //         $user = $request->user();
+    //         $userRole = $user->role?->name;
+
+    //         // Check authorization
+    //         if (!in_array($userRole, ['admin', 'super agent'])) {
+    //             return response()->json([
+    //                 'message' => 'Unauthorized: Only admin and super agent can create payments',
+    //                 'status' => 'error'
+    //             ], 403);
+    //         }
+
+    //         $validated = $request->validate([
+    //             'amount' => ['required', 'decimal:2'],
+    //             'currency_id' => ['required', 'exists:currencies,id'],
+    //             'saved_by' => ['required', 'exists:users,id'],
+    //             'agent_id' => ['sometimes', 'exists:users,id'],
+    //             'description' => ['sometimes', 'string', 'min:10'],
+    //             'stock_history_id' => ['sometimes', 'exists:stock_histories,id'],
+    //             'payment_type' => ['required', 'in:' . implode(',', array_column(PaymentTypeEnum::cases(), 'value'))],
+    //             'invoice_id' => ['sometimes', 'exists:invoices,id'],
+    //             'payment_method' => ['required', 'in:' . implode(',', array_column(PaymentMethodEnum::cases(), 'value'))]
+    //         ]);
+
+    //         $payment = Payment::create($validated);
+    //         return response()->json([
+    //             'message' => 'Payment saved successfully',
+    //             'data' => $payment,
+    //             'status' => 'success'
+    //         ], 201);
+    //     } catch (Exception $err) {
+    //         return response()->json([
+    //             'message' => 'An error occurred',
+    //             'error' => $err->getMessage(),
+    //             'status' => 'error'
+    //         ], 500);
+    //     }
+    // }
     public function store(Request $request)
     {
         try {
@@ -72,24 +112,52 @@ class PaymentController extends Controller
                 ], 403);
             }
 
+            // Fallback injection logic if the client UI sends a null or empty saved_by parameter
+            if (!$request->has('saved_by') || empty($request->input('saved_by'))) {
+                $request->merge(['saved_by' => $user->id]);
+            }
+
             $validated = $request->validate([
-                'amount' => ['required', 'decimal:2'],
+                'amount' => ['required', 'numeric'],
                 'currency_id' => ['required', 'exists:currencies,id'],
                 'saved_by' => ['required', 'exists:users,id'],
-                'agent_id' => ['sometimes', 'exists:users,id'],
-                'description' => ['sometimes', 'string', 'min:10'],
-                'stock_history_id' => ['sometimes', 'exists:stock_histories,id'],
-                'payment_type' => ['required', 'in:' . implode(',', array_column(PaymentTypeEnum::cases(), 'value'))],
-                'invoice_id' => ['sometimes', 'exists:invoices,id'],
-                'payment_method' => ['required', 'in:' . implode(',', array_column(PaymentMethodEnum::cases(), 'value'))]
+                'agent_id' => ['sometimes', 'nullable', 'exists:users,id'],
+                'description' => ['required', 'string', 'min:5'],
+                'payment_method' => ['required', 'string'],
+
+                // Core dynamic conditional payload switches
+                'payment_type' => ['required', 'string', 'in:Subscription,Ticket'],
+
+                // client_id must exist if the payment_type is a Subscription
+                'client_id' => ['required_if:payment_type,Subscription', 'nullable', 'exists:clients,id'],
+
+                // stock_history_id must exist if the payment_type is a Ticket
+                'stock_history_id' => ['required_if:payment_type,Ticket', 'nullable', 'exists:stock_histories,id'],
+
+                'invoice_id' => ['sometimes', 'nullable', 'exists:invoices,id'],
             ]);
 
+            // Backend enforcement: Ensure selected stock history item is actually a reduction (sale)
+            if ($validated['payment_type'] === 'Ticket' && !empty($validated['stock_history_id'])) {
+                $movement = \App\Models\StockHistory::find($validated['stock_history_id']);
+
+                // Adjust 'reduction' or 'out' string check based on your actual database enum status
+                if ($movement && $movement->type !== 'reduction' && $movement->type !== 'out') {
+                    return response()->json([
+                        'message' => 'Validation error',
+                        'errors' => ['stock_history_id' => ['Le mouvement de stock sélectionné doit obligatoirement être une réduction (vente).']]
+                    ], 422);
+                }
+            }
+
             $payment = Payment::create($validated);
+
             return response()->json([
                 'message' => 'Payment saved successfully',
-                'data' => $payment,
+                'data' => $payment->load(['currency', 'savedBy']),
                 'status' => 'success'
             ], 201);
+
         } catch (Exception $err) {
             return response()->json([
                 'message' => 'An error occurred',

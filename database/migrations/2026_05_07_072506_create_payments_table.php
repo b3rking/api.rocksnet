@@ -2,6 +2,7 @@
 
 use App\Enums\PaymentMethodEnum;
 use App\Enums\PaymentTypeEnum;
+use App\Models\Currency;
 use App\Models\Invoice;
 use App\Models\StockHistory;
 use App\Models\User;
@@ -19,7 +20,7 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->float('amount');
-            $table->foreignIdFor('currency_id');
+            $table->foreignIdFor(Currency::class);
             $table->foreignIdFor(User::class, 'saved_by');
             $table->foreignIdFor(User::class, 'agent_id')->nullable();
             $table->string('description')->nullable();
