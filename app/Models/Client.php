@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Client extends Model
 {
     protected $fillable = [
-        'name', 'phone', 'adress', 'subscription_id', 'etat'
+        'name', 'phone', 'adress', 'subscription_id', 'etat', 'email'
     ];
 
     protected $casts = [

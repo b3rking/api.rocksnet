@@ -32,7 +32,7 @@ class Payment extends Model
 
     public function savedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'saved_by');
     }
 
     public function agent(): BelongsTo
@@ -45,8 +45,13 @@ class Payment extends Model
         return $this->belongsTo(StockHistory::class);
     }
 
-    public function invoice(): BelongsTo
+    // public function invoice(): BelongsTo
+    // {
+    //     return $this->belongsTo(invoice::class);
+    // }
+
+    public function invoice()
     {
-        return $this->belongsTo(invoice::class);
+        return $this->hasOne(Invoice::class);
     }
 }

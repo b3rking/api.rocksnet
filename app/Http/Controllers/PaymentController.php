@@ -5,33 +5,29 @@ namespace App\Http\Controllers;
 use App\Enums\PaymentMethodEnum;
 use App\Enums\PaymentTypeEnum;
 use App\Models\Payment;
+use App\Models\Invoice;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
     /**
      * Display a listing of the resource.
-     * Only admin and super agent can view all payments
-     * Agent can only view payments they created or are assigned to
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
             $userRole = $user->role?->name;
 
-            if ($userRole === 'admin') {
-                // Admin can see all payments
-                $payments = Payment::with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice'])->get();
-            } elseif ($userRole === 'super agent') {
-                // Super agent can see all payments
-                $payments = Payment::with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice'])->get();
+            if (in_array($userRole, ['admin', 'super agent'])) {
+                $payments = Payment::with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice.client'])->get();
             } elseif ($userRole === 'agent') {
-                // Agent can only see payments they created or are assigned to
                 $payments = Payment::where('saved_by', $user->id)
                     ->orWhere('agent_id', $user->id)
-                    ->with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice'])
+                    ->with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice.client'])
                     ->get();
             } else {
                 return response()->json([
@@ -56,55 +52,13 @@ class PaymentController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     * Only admin and super agent can create payments
      */
-    // public function store(Request $request)
-    // {
-    //     try {
-    //         $user = $request->user();
-    //         $userRole = $user->role?->name;
-
-    //         // Check authorization
-    //         if (!in_array($userRole, ['admin', 'super agent'])) {
-    //             return response()->json([
-    //                 'message' => 'Unauthorized: Only admin and super agent can create payments',
-    //                 'status' => 'error'
-    //             ], 403);
-    //         }
-
-    //         $validated = $request->validate([
-    //             'amount' => ['required', 'decimal:2'],
-    //             'currency_id' => ['required', 'exists:currencies,id'],
-    //             'saved_by' => ['required', 'exists:users,id'],
-    //             'agent_id' => ['sometimes', 'exists:users,id'],
-    //             'description' => ['sometimes', 'string', 'min:10'],
-    //             'stock_history_id' => ['sometimes', 'exists:stock_histories,id'],
-    //             'payment_type' => ['required', 'in:' . implode(',', array_column(PaymentTypeEnum::cases(), 'value'))],
-    //             'invoice_id' => ['sometimes', 'exists:invoices,id'],
-    //             'payment_method' => ['required', 'in:' . implode(',', array_column(PaymentMethodEnum::cases(), 'value'))]
-    //         ]);
-
-    //         $payment = Payment::create($validated);
-    //         return response()->json([
-    //             'message' => 'Payment saved successfully',
-    //             'data' => $payment,
-    //             'status' => 'success'
-    //         ], 201);
-    //     } catch (Exception $err) {
-    //         return response()->json([
-    //             'message' => 'An error occurred',
-    //             'error' => $err->getMessage(),
-    //             'status' => 'error'
-    //         ], 500);
-    //     }
-    // }
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
             $userRole = $user->role?->name;
 
-            // Check authorization
             if (!in_array($userRole, ['admin', 'super agent'])) {
                 return response()->json([
                     'message' => 'Unauthorized: Only admin and super agent can create payments',
@@ -112,7 +66,6 @@ class PaymentController extends Controller
                 ], 403);
             }
 
-            // Fallback injection logic if the client UI sends a null or empty saved_by parameter
             if (!$request->has('saved_by') || empty($request->input('saved_by'))) {
                 $request->merge(['saved_by' => $user->id]);
             }
@@ -122,27 +75,21 @@ class PaymentController extends Controller
                 'currency_id' => ['required', 'exists:currencies,id'],
                 'saved_by' => ['required', 'exists:users,id'],
                 'agent_id' => ['sometimes', 'nullable', 'exists:users,id'],
-                'description' => ['required', 'string', 'min:5'],
                 'payment_method' => ['required', 'string'],
-
-                // Core dynamic conditional payload switches
                 'payment_type' => ['required', 'string', 'in:Subscription,Ticket'],
 
-                // client_id must exist if the payment_type is a Subscription
+                // Subscription specifics
                 'client_id' => ['required_if:payment_type,Subscription', 'nullable', 'exists:clients,id'],
+                'period' => ['required_if:payment_type,Subscription', 'nullable', 'string', 'in:15 days,1 month,3 months,6 months,1 year'],
 
-                // stock_history_id must exist if the payment_type is a Ticket
+                // Ticket specifics
                 'stock_history_id' => ['required_if:payment_type,Ticket', 'nullable', 'exists:stock_histories,id'],
-
-                'invoice_id' => ['sometimes', 'nullable', 'exists:invoices,id'],
             ]);
 
-            // Backend enforcement: Ensure selected stock history item is actually a reduction (sale)
+            // Ticket Reduction validation check
             if ($validated['payment_type'] === 'Ticket' && !empty($validated['stock_history_id'])) {
                 $movement = \App\Models\StockHistory::find($validated['stock_history_id']);
-
-                // Adjust 'reduction' or 'out' string check based on your actual database enum status
-                if ($movement && $movement->type !== 'reduction' && $movement->type !== 'out') {
+                if ($movement && $movement->action !== 'Reduction') {
                     return response()->json([
                         'message' => 'Validation error',
                         'errors' => ['stock_history_id' => ['Le mouvement de stock sélectionné doit obligatoirement être une réduction (vente).']]
@@ -150,11 +97,26 @@ class PaymentController extends Controller
                 }
             }
 
-            $payment = Payment::create($validated);
+            // Database isolation wrapper
+            $payment = DB::transaction(function () use ($validated) {
+                // 1. Create the base payment record
+                $paymentRecord = Payment::create($validated);
+
+                // 2. If it's a Subscription, generate the background invoice link directly
+                if ($validated['payment_type'] === 'Subscription') {
+                    Invoice::create([
+                        'client_id' => $validated['client_id'],
+                        'payment_id' => $paymentRecord->id,
+                        'period' => $validated['period']
+                    ]);
+                }
+
+                return $paymentRecord;
+            });
 
             return response()->json([
                 'message' => 'Payment saved successfully',
-                'data' => $payment->load(['currency', 'savedBy']),
+                'data' => $payment->load(['currency', 'savedBy', 'invoice']),
                 'status' => 'success'
             ], 201);
 
@@ -169,15 +131,13 @@ class PaymentController extends Controller
 
     /**
      * Display the specified resource.
-     * Only authorized users can view a payment
      */
-    public function show(Request $request, Payment $payment)
+    public function show(Request $request, Payment $payment): JsonResponse
     {
         try {
             $user = $request->user();
             $userRole = $user->role?->name;
 
-            // Check authorization
             if ($userRole === 'agent' && $payment->saved_by !== $user->id && $payment->agent_id !== $user->id) {
                 return response()->json([
                     'message' => 'Unauthorized: You can only view your own payments',
@@ -203,15 +163,13 @@ class PaymentController extends Controller
 
     /**
      * Update the specified resource in storage.
-     * Only admin and super agent can update payments
      */
-    public function update(Request $request, Payment $payment)
+    public function update(Request $request, Payment $payment): JsonResponse
     {
         try {
             $user = $request->user();
             $userRole = $user->role?->name;
 
-            // Check authorization
             if (!in_array($userRole, ['admin', 'super agent'])) {
                 return response()->json([
                     'message' => 'Unauthorized: Only admin and super agent can update payments',
@@ -219,23 +177,60 @@ class PaymentController extends Controller
                 ], 403);
             }
 
+            // CRITICAL SAFEGUARD: Block altering payment_type context structural modes entirely
+            if ($request->has('payment_type') && $request->input('payment_type') !== $payment->payment_type) {
+                return response()->json([
+                    'message' => 'Validation error',
+                    'errors' => ['payment_type' => ['Le type de paiement ne peut pas être modifié après sa création pour préserver la cohérence des données.']]
+                ], 422);
+            }
+
             $validated = $request->validate([
-                'amount' => ['sometimes', 'decimal:2'],
+                'amount' => ['sometimes', 'numeric'],
                 'currency_id' => ['sometimes', 'exists:currencies,id'],
                 'saved_by' => ['sometimes', 'exists:users,id'],
-                'agent_id' => ['sometimes', 'exists:users,id'],
-                'description' => ['sometimes', 'string', 'min:10'],
-                'stock_history_id' => ['sometimes', 'exists:stock_histories,id'],
-                'payment_type' => ['sometimes', 'in:' . implode(',', array_column(PaymentTypeEnum::cases(), 'value'))],
-                'invoice_id' => ['sometimes', 'exists:invoices,id'],
-                'payment_method' => ['sometimes', 'in:' . implode(',', array_column(PaymentMethodEnum::cases(), 'value'))]
+                'agent_id' => ['sometimes', 'nullable', 'exists:users,id'],
+                'description' => ['sometimes', 'string', 'min:5'],
+                'payment_method' => ['sometimes', 'string'],
+
+                // Subscription contextual changes
+                'client_id' => ['required_if:payment_type,Subscription', 'nullable', 'exists:clients,id'],
+                'period' => ['required_if:payment_type,Subscription', 'nullable', 'string', 'in:15 days,1 month,3 months,6 months,1 year'],
+
+                // Ticket contextual changes
+                'stock_history_id' => ['required_if:payment_type,Ticket', 'nullable', 'exists:stock_histories,id'],
             ]);
 
-            $payment->update($validated);
+            // Validate stock history action rule on edit if provided
+            if ($payment->payment_type === 'Ticket' && !empty($validated['stock_history_id'])) {
+                $movement = \App\Models\StockHistory::find($validated['stock_history_id']);
+                if ($movement && $movement->action !== 'Reduction') {
+                    return response()->json([
+                        'message' => 'Validation error',
+                        'errors' => ['stock_history_id' => ['Le mouvement de stock sélectionné doit obligatoirement être une réduction (vente).']]
+                    ], 422);
+                }
+            }
+
+            // Run database updates inside isolated transaction block
+            DB::transaction(function () use ($payment, $validated) {
+                $payment->update($validated);
+
+                // Sync invoice information updates if we are operating inside a Subscription structural timeline
+                if ($payment->payment_type === 'Subscription') {
+                    Invoice::updateOrCreate(
+                        ['payment_id' => $payment->id],
+                        [
+                            'client_id' => $validated['client_id'] ?? $payment->client_id,
+                            'period' => $validated['period'] ?? $payment->invoice?->period
+                        ]
+                    );
+                }
+            });
 
             return response()->json([
                 'message' => 'Payment updated successfully',
-                'data' => $payment,
+                'data' => $payment->load(['currency', 'savedBy', 'invoice']),
                 'status' => 'success'
             ], 200);
         } catch (Exception $err) {
@@ -249,15 +244,13 @@ class PaymentController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     * Only admin can delete payments
      */
-    public function destroy(Request $request, Payment $payment)
+    public function destroy(Request $request, Payment $payment): JsonResponse
     {
         try {
             $user = $request->user();
             $userRole = $user->role?->name;
 
-            // Check authorization - only admin can delete
             if ($userRole !== 'admin') {
                 return response()->json([
                     'message' => 'Unauthorized: Only admin can delete payments',

@@ -63,6 +63,7 @@ class ClientController extends Controller
 
             $validated = $request->validate([
                 'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'email', 'max:255', 'unique:clients,email'], // Added Email rules
                 'phone' => ['required', 'string', 'max:50'],
                 'adress' => ['required', 'string', 'max:255'],
                 'subscription_id' => ['required', 'exists:subscriptions,id'],
@@ -136,6 +137,7 @@ class ClientController extends Controller
 
             $validated = $request->validate([
                 'name' => ['sometimes', 'string', 'max:255'],
+                'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:clients,email,' . $client->id], // Added Dynamic unique check exclusion
                 'phone' => ['sometimes', 'string', 'max:50'],
                 'adress' => ['sometimes', 'string', 'max:255'],
                 'subscription_id' => ['sometimes', 'exists:subscriptions,id'],

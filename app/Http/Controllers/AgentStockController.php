@@ -120,14 +120,30 @@ class AgentStockController extends Controller
     {
         $user = $request->user();
 
-        if ($user->isAdmin()) {
-            $history = StockHistory::with(['agent', 'profil'])->latest()->get();
+        // Start with relations and order
+        $query = StockHistory::with(['agent', 'profil'])->latest();
+
+        // 1. PERFORMANCE & LOGIC FIX: Only bring reductions that DO NOT have an associated payment yet
+        // Change 'payment' to whatever your relation method is named on the StockHistory model
+        $query->whereDoesntHave('payment');
+
+        // 2. Role-based scoping
+        if (!$user->isAdmin()) {
+            $query->where('agent_id', $user->id);
         } else {
-            $history = StockHistory::with(['agent', 'profil'])
-                ->where('agent_id', $user->id)
-                ->latest()
-                ->get();
+            // If Admin, filter by selected agent only if they explicitly provided one
+            if ($request->has('agent_id') && !empty($request->query('agent_id'))) {
+                $query->where('agent_id', $request->query('agent_id'));
+            }
         }
+
+        // 3. Keep standard action filtering (e.g., type/action = Reduction)
+        if ($request->has('action') && !empty($request->query('action'))) {
+            $query->where('action', $request->query('action'));
+        }
+
+        // 4. Optimization safeguard: Limit the payload size just in case an agent still has massive unpaid balances
+        $history = $query->limit(100)->get();
 
         return response()->json([
             'message' => 'History fetched successfully',
