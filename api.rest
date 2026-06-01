@@ -241,19 +241,19 @@
 # 3. CREATE PAYMENT - WITH SUBSCRIPTION
 # ======================================
 
-POST http://localhost:8000/api/payments HTTP/1.1
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+# POST http://localhost:8000/api/payments HTTP/1.1
+# Accept: application/json
+# Content-Type: application/json
+# Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
 
-{
-    "amount": "280.00",
-    "currency_id": 1,
-    "saved_by": 1,
-    "description": "Monthly subscription payment",
-    "payment_type": "Subscription",
-    "payment_method": "Transfert"
-}
+# {
+#     "amount": "280.00",
+#     "currency_id": 1,
+#     "saved_by": 1,
+#     "description": "Monthly subscription payment",
+#     "payment_type": "Subscription",
+#     "payment_method": "Transfert"
+# }
 
 
 # ======================================
@@ -311,3 +311,4 @@ Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
 # DELETE http://localhost:8000/api/payments/019df3cc-629e-7303-a014-fc5f86edae67
 # Accept: application/json
 # Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
+
