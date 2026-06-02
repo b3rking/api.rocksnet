@@ -312,3 +312,10 @@
 # Accept: application/json
 # Authorization: Bearer 4|3gGCPfAbMBqHhbz7BVRKYhzabcp8k5r9BIPx3xC35a94062c
 
+
+
+
+GET http://localhost:8000/api/dashboard
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer 51|OJSLyS57v6k8yEdnzRjwxQr5ZzpFPnxRC37VOPx0b80ad2f8

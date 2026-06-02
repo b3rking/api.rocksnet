@@ -39,4 +39,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('subscriptions', SubscriptionController::class);
     Route::apiResource('payments', PaymentController::class);
     Route::apiResource('clients', ClientController::class);
+    Route::get('dashboard', [AppController::class, 'dashboard_data']);
 });
