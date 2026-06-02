@@ -6,6 +6,7 @@ use App\Enums\ClientEtat;
 use App\Models\Client;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class ClientController extends Controller
 {
@@ -13,7 +14,7 @@ class ClientController extends Controller
      * Display a listing of the resource.
      * Accessible by admin, super agent, and agents.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -27,8 +28,44 @@ class ClientController extends Controller
                 ], 403);
             }
 
-            // Fetch clients eager-loading subscription relations
-            $clients = Client::with(['subscription.currency'])->get();
+            $perPage = $request->query('per_page', 10);
+            $sortField = $request->query('sort_by', 'created_at');
+            $sortDirection = $request->query('sort_desc', 'true') === 'true' ? 'desc' : 'asc';
+
+            // Eager-load relations
+            $query = Client::with(['subscription.currency']);
+
+            // 1. --- FILTRE STATUT EXACT (Actif, Suspendu, etc.) ---
+            if ($request->filled('etat') && $request->query('etat') !== 'all') {
+                $query->where('etat', $request->query('etat'));
+            }
+
+            // 2. --- RECHERCHE GLOBALE ET MULTI-COLONNES ---
+            if ($search = $request->query('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('phone', 'LIKE', "%{$search}%")
+                        ->orWhere('email', 'LIKE', "%{$search}%")
+                        ->orWhere('adress', 'LIKE', "%{$search}%")
+                        ->orWhereHas('subscription', function ($subQuery) use ($search) {
+                            $subQuery->where('bandwidth', 'LIKE', "%{$search}%")
+                                ->orWhere('price', 'LIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            // 3. --- LOGIQUE DE TRI SUR RELATIONS ET COLONNES ---
+            if ($sortField === 'subscription.bandwidth') {
+                $query->leftJoin('subscriptions', 'clients.subscription_id', '=', 'subscriptions.id')
+                    ->select('clients.*')
+                    ->orderBy('subscriptions.bandwidth', $sortDirection);
+            } else {
+                // Protège les tris sur colonnes de base (name, phone, email, adress, etat, created_at)
+                $query->orderBy('clients.' . $sortField, $sortDirection);
+            }
+
+            // Exécution de la pagination
+            $clients = $query->paginate($perPage);
 
             return response()->json([
                 'message' => 'Clients retrieved successfully',

@@ -4,22 +4,56 @@ namespace App\Http\Controllers;
 
 use App\Models\Subscription;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class SubscriptionController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request): JsonResponse
     {
+        $perPage = $request->query('per_page', 10);
+
+        // Extraction des paramètres de tri par défaut
+        $sortField = $request->query('sort_by', 'created_at');
+        $sortDirection = $request->query('sort_desc', 'true') === 'true' ? 'desc' : 'asc';
+
+        // Initialisation de la requête avec la relation de devise
+        $query = Subscription::with('currency');
+
+        // 1. --- FILTRE RECHERCHE (Recherche sur la bande passante ou le prix) ---
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('bandwidth', 'LIKE', "%{$search}%")
+                    ->orWhere('price', 'LIKE', "%{$search}%")
+                    ->orWhereHas('currency', function ($currencyQuery) use ($search) {
+                        $currencyQuery->where('code', 'LIKE', "%{$search}%")
+                            ->orWhere('name', 'LIKE', "%{$search}%")
+                            ->orWhere('symbol', 'LIKE', "%{$search}%");
+                    });
+            });
+        }
+
+        // 2. --- LOGIQUE DE TRI AVANCÉ ---
+        if ($sortField === 'currency') {
+            // Optionnel : Si vous souhaitez trier par le code ou le nom de la devise
+            $query->leftJoin('currencies', 'subscriptions.currency_id', '=', 'currencies.id')
+                ->select('subscriptions.*')
+                ->orderBy('currencies.code', $sortDirection);
+        } else {
+            // Évite les collisions d'ID sur les colonnes de base (bandwidth, price, created_at)
+            $query->orderBy('subscriptions.' . $sortField, $sortDirection);
+        }
+
+        // Exécution de la pagination
+        $subscriptions = $query->paginate($perPage);
+
         return response()->json([
-            'message' => 'subscription fetched successfully',
-            'subscriptions' => Subscription
-                ::latest()
-                ->with('currency')
-                ->paginate(10),
-            'count' => Subscription::count()
-        ]);
+            'message' => 'Subscriptions fetched successfully',
+            'subscriptions' => $subscriptions,
+            'count' => Subscription::count() // Compte total global gardé à titre informatif
+        ], 200);
     }
 
     /**

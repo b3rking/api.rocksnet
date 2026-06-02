@@ -22,13 +22,15 @@ class PaymentController extends Controller
             $user = $request->user();
             $userRole = $user->role?->name;
 
+            // 1. --- FORCE ENFORCEMENT DES DROITS ET CLOISONNEMENT ---
             if (in_array($userRole, ['admin', 'super agent'])) {
-                $payments = Payment::with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice.client'])->get();
+                $query = Payment::query();
             } elseif ($userRole === 'agent') {
-                $payments = Payment::where('saved_by', $user->id)
-                    ->orWhere('agent_id', $user->id)
-                    ->with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice.client'])
-                    ->get();
+                // Regroupement logique indispensable pour éviter les fuites de données d'autres agents
+                $query = Payment::where(function ($q) use ($user) {
+                    $q->where('saved_by', $user->id)
+                        ->orWhere('agent_id', $user->id);
+                });
             } else {
                 return response()->json([
                     'message' => 'Unauthorized',
@@ -36,9 +38,55 @@ class PaymentController extends Controller
                 ], 403);
             }
 
+            // Chargement systématique des relations nécessaires
+            $query->with(['currency', 'savedBy', 'agent', 'stockHistory', 'invoice.client']);
+
+            $perPage = $request->query('per_page', 10);
+            $sortField = $request->query('sort_by', 'created_at');
+            $sortDirection = $request->query('sort_desc', 'true') === 'true' ? 'desc' : 'asc';
+
+            // 2. --- FILTRES SÉLECTIFS (Méthode & Type de flux) ---
+            if ($request->filled('method') && $request->query('method') !== 'all') {
+                $query->where('payment_method', $request->query('method'));
+            }
+
+            if ($request->filled('type') && $request->query('type') !== 'all') {
+                $query->where('payment_type', $request->query('type'));
+            }
+
+            // 3. --- RECHERCHE TEXTUELLE GLOBALE MULTI-RELATIONS ---
+            if ($search = $request->query('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('amount', 'LIKE', "%{$search}%")
+                        ->orWhere('payment_method', 'LIKE', "%{$search}%")
+                        ->orWhereHas('agent', function ($agentQ) use ($search) {
+                            $agentQ->where('name', 'LIKE', "%{$search}%");
+                        })
+                        ->orWhereHas('invoice.client', function ($clientQ) use ($search) {
+                            $clientQ->where('name', 'LIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            // 4. --- TRIS DYNAMIQUES AVANCÉS ---
+            if ($sortField === 'target_entity') {
+                // Tri polymorphe approximatif basé en priorité sur le nom du client (Abonnement) puis de l'agent (Ticket)
+                $query->leftJoin('invoices', 'payments.invoice_id', '=', 'invoices.id')
+                    ->leftJoin('clients', 'invoices.client_id', '=', 'clients.id')
+                    ->leftJoin('users as agents', 'payments.agent_id', '=', 'agents.id')
+                    ->select('payments.*')
+                    ->orderByRaw("COALESCE(clients.name, agents.name) $sortDirection");
+            } else {
+                // Colonnes standards (amount, payment_method, payment_type, created_at)
+                $query->orderBy('payments.' . $sortField, $sortDirection);
+            }
+
+            // Exécution finale de la pagination
+            $payments = $query->paginate($perPage);
+
             return response()->json([
                 'message' => 'Payments retrieved successfully',
-                'data' => $payments,
+                'payments' => $payments, // Structuré proprement pour correspondre au destructurateur UI
                 'status' => 'success'
             ], 200);
         } catch (Exception $err) {
@@ -119,7 +167,6 @@ class PaymentController extends Controller
                 'data' => $payment->load(['currency', 'savedBy', 'invoice']),
                 'status' => 'success'
             ], 201);
-
         } catch (Exception $err) {
             return response()->json([
                 'message' => 'An error occurred',

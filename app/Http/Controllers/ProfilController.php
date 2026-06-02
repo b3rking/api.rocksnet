@@ -4,18 +4,54 @@ namespace App\Http\Controllers;
 
 use App\Models\Profil;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class ProfilController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request): JsonResponse
     {
-        return response()->json([
-            'profils' => Profil::all()->load('currency'),
-            'count' => Profil::count()
-        ]);
+        $perPage = $request->query('per_page', 10);
+
+        // Récupération des paramètres de tri (Cohérence totale avec ta structure)
+        $sortField = $request->query('sort_by', 'created_at');
+        $sortDirection = $request->query('sort_desc', 'true') === 'true' ? 'desc' : 'asc';
+
+        $query = Profil::with('currency');
+
+        // --- FILTRES DYNAMIQUES ET CONFIGURABLES ---
+        // 1. Recherche globale (Nom / Durée / Prix)
+        if ($search = $request->query('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                ->orWhere('duration', 'LIKE', "%{$search}%")
+                ->orWhere('price', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // 2. Filtre exact par devise si besoin (optionnel, mais garde la logique)
+        if ($currencyId = $request->query('currency_id')) {
+            $query->where('currency_id', $currencyId);
+        }
+
+        // --- TRI EFFECTIF ---
+        // Gestion du tri sur la relation currency (ex: currency.name ou currency.code)
+        if ($sortField === 'currency.name' || $sortField === 'currency.code') {
+            $column = $sortField === 'currency.name' ? 'currencies.name' : 'currencies.code';
+
+            $query->leftJoin('currencies', 'profils->currency_id', '=', 'currencies.id')
+                ->select('profils.*') // Évite la collision d'IDs
+                ->orderBy($column, $sortDirection);
+        } else {
+            // Tri classique sur la table profils
+            $query->orderBy($sortField, $sortDirection);
+        }
+
+        $profils = $query->paginate($perPage);
+
+        return response()->json($profils);
     }
 
     /**
