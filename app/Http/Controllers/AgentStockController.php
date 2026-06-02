@@ -213,4 +213,17 @@ class AgentStockController extends Controller
 
         return response()->json($history);
     }
+
+    public function deleteStock(Request $request, AgentStock $stock): JsonResponse
+    {
+        $user = $request->user();
+        if ($user->isAdmin()) {
+            $stock->delete();
+            return response()->json([], 204);
+        }
+        return response()->json([
+            'message' => 'effacement impossible! access insuffisant',
+            'error' => 'access insufisant'
+        ], 403);
+    }
 }

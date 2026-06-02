@@ -36,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('stock', [AgentStockController::class, 'index']);
     Route::post('stock/attribute', [AgentStockController::class, 'attributeTicket']);
     Route::post('stock/sale', [AgentStockController::class, 'saleTicket']);
+    Route::post('stock/destroy/{stock}', [AgentStockController::class, 'deleteStock']);
     Route::get('stock/history', [AgentStockController::class, 'saleHistory']);
     Route::apiResource('subscriptions', SubscriptionController::class);
     Route::apiResource('payments', PaymentController::class);
