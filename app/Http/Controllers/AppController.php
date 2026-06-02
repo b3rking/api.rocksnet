@@ -34,12 +34,40 @@ class AppController extends Controller
 
     public function users(Request $request): JsonResponse
     {
-        // On récupère dynamiquement le pageSize envoyé par React (par défaut 10)
         $perPage = $request->query('per_page', 10);
 
-        $users = User::latest()
-            ->with('role')
-            ->paginate($perPage);
+        // Récupération des paramètres de tri
+        $sortField = $request->query('sort_by', 'created_at'); // Champ par défaut
+        $sortDirection = $request->query('sort_desc', 'true') === 'true' ? 'desc' : 'asc';
+
+        $query = User::with('role');
+
+        // --- FILTRES DYNAMIQUES ET CONFIGURABLES ---
+        // 1. Recherche globale ou par texte (Nom / Email)
+        if ($search = $request->query('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                ->orWhere('email', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // 2. Filtre exact (par exemple par rôle)
+        if ($roleId = $request->query('role_id')) {
+            $query->where('role_id', $roleId);
+        }
+
+        // --- TRI EFFECTIF ---
+        // Gestion du tri sur une relation (ex: role.name)
+        if ($sortField === 'role.name') {
+            $query->leftJoin('roles', 'users.role_id', '=', 'roles.id')
+                ->select('users.*') // Évite la collision d'IDs
+                ->orderBy('roles.name', $sortDirection);
+        } else {
+            // Tri classique sur la table users
+            $query->orderBy($sortField, $sortDirection);
+        }
+
+        $users = $query->paginate($perPage);
 
         return response()->json($users);
     }
