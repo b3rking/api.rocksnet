@@ -32,9 +32,16 @@ class AppController extends Controller
         return response()->json(User::where('role_id', 1)->get());
     }
 
-    public function users(): JsonResponse
+    public function users(Request $request): JsonResponse
     {
-        return response()->json(User::latest()->with('role')->paginate(10));
+        // On récupère dynamiquement le pageSize envoyé par React (par défaut 10)
+        $perPage = $request->query('per_page', 10);
+
+        $users = User::latest()
+            ->with('role')
+            ->paginate($perPage);
+
+        return response()->json($users);
     }
 
     public function currencies(): JsonResponse
