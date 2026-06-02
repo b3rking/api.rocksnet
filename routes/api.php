@@ -11,9 +11,10 @@ use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\SubscriptionController;
 use App\Models\Currency;
 use App\Models\Role;
+use App\Models\User;
 
 Route::get('/user', function (Request $request) {
-    return $request->user();
+    return User::find($request->user()->id)->with('role');
 })->middleware('auth:sanctum');
 
 // Public routes
