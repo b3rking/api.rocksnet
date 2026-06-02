@@ -19,12 +19,12 @@ class AgentStockController extends Controller
             return response()->json([
                 'stock' => AgentStock::where('user_id', $request->user()->id)
                     ->get()
-                    ->load('user', 'profil'),
+                    ->load('user', 'profil.currency'),
                 'count' => AgentStock::count()
             ]);
         } else {
             return response()->json([
-                'stock' => AgentStock::all()->load('user', 'profil'),
+                'stock' => AgentStock::all()->load('user', 'profil.currency'),
                 'count' => AgentStock::count()
             ]);
         }
