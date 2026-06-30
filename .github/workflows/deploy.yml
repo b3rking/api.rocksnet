@@ -1,0 +1,26 @@
+name: Deploy Laravel API to Production
+
+on:
+  push:
+    branches:
+      - main  # Change to master if your default branch is master
+
+jobs:
+  deploy:
+    name: Deploy to Contabo VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Deployment Script via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true # Stops the workflow immediately if the bash script fails
+          script: |
+            /var/www/vhosts/rocksnet-api/deploy.sh
