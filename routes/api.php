@@ -12,6 +12,14 @@ use App\Http\Controllers\SubscriptionController;
 use App\Models\Currency;
 use App\Models\Role;
 use App\Models\User;
+use Prometheus\CollectorRegistry;
+use Prometheus\RenderTextFormat;
+
+Route::get('/metrics', function (CollectorRegistry $registry) {
+    $renderer = new RenderTextFormat();
+    return response($renderer->render($registry->getMetricFamilySamples()))
+        ->header('Content-Type', RenderTextFormat::MIME_TYPE);
+});
 
 Route::get('/user', function (Request $request) {
     return User::find($request->user()->id)->with('role');
